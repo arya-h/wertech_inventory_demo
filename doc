@@ -1,9 +1,9 @@
 # Table of contents
 
 1. [Backend](#backend) \
-1.2 [Flask architecture](#flask_architecture) \
-    1.2.1 [Configuration](#flask_configuration) \
-    1.2.2 [Files](#flask_files)
+1.2 [Flask Architecture](#flask-architecture) \
+    1.2.1 [Configuration](#flask-configuration) \
+    1.2.2 [Files](#flask-files)
 
 
 2. [Frontend](#frontend)
@@ -12,9 +12,150 @@
 
 ## Flask Architecture
 
-### Configuration
+### Flask Configuration
 
-### Files
+- #### backend/config.py
+    - contains 2 different variants for configuration, development and production. Change accordingly.
+    - `SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://root:@localhost/inventory_demo'  `
+    Depending on the sql dialect and the driver, change the values. The syntax is dbtype|driver://username:password@host/dbname
+    - `SESSION_REDIS = redis.from_url("redis://localhost:6379")`
+    Redis configuration is for user session persistency. Must be noted that a docker image for redis MUST also be launched on the server to enable login functionalities.
+    - `MYSQL_DATABASE_HOST = "localhost"
+    MYSQL_DATABASE_PORT = 3306
+    MYSQL_DATABASE_USER = "root"
+    MYSQL_DATABASE_PASSWORD = ""
+    MYSQL_DATABASE_DB = "inventory_demo"`
+    
+    Same as SQLAlchemy access, but for all the other SQL queries.
+
+### Flask Files
+- ### routes/auth.py
+    - ```python
+        @app.route("/@me")
+        def get_current_user():
+      ```
+    
+        The frontend will query this route to retrieve the user currently logged in.
+        Will use SQLAlchemy instead of normal queries.
+        After it has determined if there is a valid session cookie, it will query the db for the rights this specific user has.
+
+    - ```python
+        @app.route("/login", methods=["POST"])
+        def login():
+      ```
+        - checks if user exists in db
+        - generates access token for redis and session
+        - returns the user and its associated token
+
+
+    - ```python
+        @app.route('/register', methods=['POST'])
+        def register():
+      ```
+
+    
+        
+- ### routes/gs1.py
+
+    - The library used for epc generation is `pyepc`
+    - ```python 
+        def getSerialFromGTIN_count(gtin : str):
+      ```
+        Queries the database for the serial number to attach to the current RFID tag to be printed. This method uses COUNT, so applies a serial number according to the ones already present in db.
+        It assumes that no records have been deleted
+
+    - ```python 
+        def getSerialFromGTIN(gtin : str): 
+      ```
+      Like the previous function it retrieves the serial number to attach to the tag, but uses MAX. It assumes that the last record has not been deleted, otherwise it will select a potentially incorrect MAX value.
+
+    - ```python 
+        def getItemInfo(gtin : str):
+      ```
+      Before printing on the tag it will retrieve information associated to it, to add relevant data on the printed label.
+
+    - ```python 
+        def addEPCtoTable(gtin : str, epc : str, serial:int):
+      ```
+      Inserts the newly created EPC value in the table.
+
+    - ```python 
+        @app.route('/getZPLData', methods=['POST'])
+        def getZPLData():
+      ```
+      Given a certain GTIN and number of tags to be printed, it will first
+        - verify the length of the GTIN and eventually add leading zeroes
+        - determine the encoding scheme chosen (SGTIN_96 or 198)
+        - for each tag it will
+            - get the serial
+            - retrieve info about product
+            - update database
+            - format the ZPL command accordingly
+    
+        It will then send back the zpl commands to be sent out to the printer.
+    - ```python 
+            @app.route('/getEPC_multiple_hardTags', methods=['POST'])
+            def getEPCMultiple_hardTags():
+      ```
+      This method is used by the Android application meant to encode hard tags. It will do the same procedures of the previous functions, but doesnt require zpl formatting. The writing operations will be done by the tablet with the Impinj SDK.
+      It sends back the EPCs to be encoded to the selected tags.
+
+
+
+There are two strings:
+    - `zplString` : has the RFID image, meant for large labels.
+    - `zplString2` : just has the barcode printed, meant for smaller labels. However it's advised to check and make tests according to label size and printer to verify correctness.
+
+    
+    
+     
+- ### routes/inventory.py
+- ### routes/items.py
+- ### routes/mobile_reader.py
+- ### routes/reminder_order.py
+- ### routes/tags.py
+- ### routes/users.py
+
 
 # Frontend
+
+### Files
+- ### `App.js`
+- ### `home.jsx`
+- ### `Drawers.jsx`
+- ### `index.js`
+- ### <b>Login and authentication components </b>
+    - ### `src/routes/login.jsx`
+
+- ### <b>Admin and user management</b>
+    - ### `src/routes/admin`
+    - ### `src/routes/adminPages/manageRoles.jsx`
+    - ### `src/routes/adminPages/manageUsers.jsx`
+    - ### `src/routes/adminPages/manageVendors.jsx`
+    - ### `src/routes/adminPages/settingsAdmin.jsx`
+
+
+- ### <b>Real time inventory - fixed readers</b>
+    - ### `src/routes/inventory/inventory-shop-tab.jsx`
+    - ### `src/routes/inventory/inventory-warehouse-tab.jsx`
+    - ### `src/routes/inventory/inventory.jsx`
+
+- ### <b>Shelf management components</b>
+    - ### `src/routes/manage-inventory-pages/edit-shelf-content`
+    - ### `src/routes/manage-inventory-pages/edit-shelf`
+
+- ### <b>Mobile reader</b>
+    - ### `src/routes/mobile/mobile_readings.jsx`
+
+- ### <b>Orders and reminders</b>
+    - ### `src/routes/order-reminder/order-reminder.jsx`
+    - ### `src/routes/order-reminder/orders.jsx`
+    - ### `src/routes/order-reminder/reminders.jsx`
+
+- ### <b>Tag printing operations</b>
+    - ### `src/routes/print-tags/print.jsx`
+
+
+- ### <b>Products management</b>
+    - ### `src/routes/products/manage-products.jsx`
 
